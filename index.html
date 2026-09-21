@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#3d2a18" />
 <title>Wait It Grow</title>
 <link rel="icon" href="./logo.svg" type="image/svg+xml" />
@@ -14,9 +14,18 @@
     --ink: #2b2116;
     --wood: #8b5a2b;
     --leaf: #2f6b38;
+    --ts: 80px;
+    --tile: 76px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; overflow: hidden; font-family: "Trebuchet MS", "Segoe UI", sans-serif; color: var(--ink); background: #132016; user-select: none; }
+  * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+  html, body {
+    height: 100%; overflow: hidden;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink); background: #132016;
+    user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
   #sky { position: fixed; inset: 0; z-index: 0; background: linear-gradient(#7ec8e3, #cfe88a); transition: background 1.2s; }
   #sky.night { background: linear-gradient(#0b1028, #24305a 60%, #3a2a48); }
   #sky.dusk { background: linear-gradient(#f08a4b, #7a3a6a 70%, #1c1630); }
@@ -43,12 +52,14 @@
   .iconbtn.active { background: #2f6b38; border-color: #8fe08a; }
   #board {
     position: fixed; inset: 0; z-index: 3; cursor: grab;
+    touch-action: none;
   }
   #board.drag { cursor: grabbing; }
   .tile {
-    position: absolute; width: 76px; height: 76px; border-radius: 12px;
+    position: absolute; width: var(--tile); height: var(--tile); border-radius: 12px;
     display: grid; place-items: center; overflow: hidden;
     box-shadow: inset 0 -7px 0 rgba(0,0,0,.14);
+    touch-action: none;
   }
   .tile.normal { background: linear-gradient(#8bc46a, #5e9a42); }
   .tile.fertile { background: linear-gradient(#6b9a3a, #3d6b22); }
@@ -181,13 +192,56 @@
     padding: 6px; margin: 6px 0; font-size: 13px;
   }
   .person button { background: #2f6b38; color: #fff; border: 0; border-radius: 8px; padding: 5px 8px; font-weight: 800; cursor: pointer; }
+  #ghost {
+    position: fixed; z-index: 70; pointer-events: none; display: none;
+    width: 44px; height: 44px; border-radius: 12px;
+    background: #fff8e6; border: 2px solid #8b5a2b;
+    align-items: center; justify-content: center; font-size: 24px;
+    transform: translate(-50%, -50%);
+  }
+  #ghost.on { display: flex; }
+  @media (max-width: 720px) {
+    :root { --ts: 54px; --tile: 50px; }
+    header.hud { gap: 4px; padding: 4px 6px 4px max(6px, env(safe-area-inset-top)); }
+    .brand { font-size: 12px; gap: 4px; }
+    .brand img { width: 18px; height: 18px; }
+    .chip { font-size: 11px; padding: 2px 6px; border-width: 1px; }
+    .iconbtn { padding: 4px 7px; font-size: 12px; border-radius: 8px; }
+    #dock { left: max(6px, env(safe-area-inset-left)); bottom: max(6px, env(safe-area-inset-bottom)); gap: 5px; }
+    #dock button { width: 40px; height: 40px; font-size: 17px; border-radius: 10px; border-width: 2px; }
+    #bag { left: 52px; top: 44px; bottom: max(6px, env(safe-area-inset-bottom)); width: min(190px, 64vw); padding: 7px; }
+    #bag h3 { font-size: 12px; }
+    .seed { padding: 5px; gap: 6px; margin-bottom: 5px; }
+    .plant { font-size: 24px; }
+    .tile.unlockable::after { font-size: 20px; }
+    .bar { height: 3px; }
+    .walker { width: 10px; height: 10px; }
+    .socio { width: 12px; height: 12px; }
+    #peoplePop { left: 52px; bottom: 52px; width: min(210px, 70vw); }
+    #tutor { max-width: min(220px, 68vw); font-size: 12px; padding: 8px; }
+    #toast { top: 44px; font-size: 12px; padding: 6px 10px; max-width: 90vw; }
+    .panel { width: min(100vw, 100%); max-height: 86vh; padding: 10px; border-width: 3px; }
+    .gridcards { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .card { padding: 7px; }
+    .card h3 { font-size: 12px; }
+    .book { grid-template-columns: 1fr; min-height: 0; gap: 8px; }
+    .page .big { font-size: 32px; }
+    #ctx { min-width: 150px; }
+    #holdGem { font-size: 12px; }
+    .hud .chip:nth-child(6), .hud .chip:nth-child(7) { display: none; }
+  }
+  @media (max-width: 420px) {
+    :root { --ts: 48px; --tile: 44px; }
+    .brand span, .brand { letter-spacing: 0; }
+    .iconbtn { padding: 3px 6px; }
+  }
 </style>
 </head>
 <body>
 <div id="sky"></div>
 <div id="fx"></div>
 <header class="hud">
-  <div class="brand"><img src="./logo.svg" alt="logo" /> Wait It Grow</div>
+  <div class="brand"><img src="./logo.svg" alt="logo" /><span>Wait It Grow</span></div>
   <div class="chip">🪙 <b id="coins">0</b></div>
   <div class="chip">💎 <b id="gems">0</b></div>
   <div class="chip">📅 <b id="dayn">1</b></div>
@@ -220,6 +274,7 @@
 <div id="toast"></div>
 <div id="ctx"></div>
 <div id="holdGem"></div>
+<div id="ghost"></div>
 
 <div class="overlay show" id="ovHello">
   <div class="panel" style="width:min(440px,96vw)">
@@ -295,7 +350,14 @@
 (() => {
   const SAVE = "waitItGrow_v3";
   const OFFLINE_RATE = 0.04;
-  const TS = 80;
+  function tileStep(){ return window.innerWidth <= 420 ? 48 : window.innerWidth <= 720 ? 54 : 80; }
+  let TS = tileStep();
+  function refreshTileSize(){
+    TS = tileStep();
+    document.documentElement.style.setProperty("--ts", TS + "px");
+    document.documentElement.style.setProperty("--tile", (TS - 4) + "px");
+  }
+  refreshTileSize();
 
   const TREES = [
     { id:"carvalho", name:"Carvalho", e:["🌱","🌿","🌳","🌳"], seed:25, grow:18, life:48, cps:0.08, reward:40, fruit:false, fruitV:0, gem:2, desc:"Forte e paciente.", rare:false },
@@ -375,7 +437,10 @@
   let toastT = 0;
   let hold = null;
   let drag = null;
+  let carry = null;
+  let skipClick = false;
   let lastRender = 0;
+  let holdWatch = null;
 
   const now = () => Date.now() + (S.dev.on ? S.dev.hours*3600000 : 0);
   const speed = () => S.dev.on ? S.dev.speed : 1;
@@ -706,6 +771,8 @@
       const pos=screenOf(x,y);
       const div=document.createElement("div");
       div.className="tile";
+      div.style.width=(TS-4)+"px";
+      div.style.height=(TS-4)+"px";
       div.style.left=pos.left+"px";
       div.style.top=pos.top+"px";
       div.dataset.x=x; div.dataset.y=y;
@@ -785,29 +852,32 @@
       const el=document.createElement("div");
       el.className="seed"+(pickSeed===id?" pick":"");
       el.draggable=true;
-      el.innerHTML=`<div style="font-size:26px">${t.e[0]}</div><div><b>${t.name}</b><div class="tiny">${S.seeds[id]} • ${t.grow} min</div></div>`;
-      el.onclick=()=>{ pickSeed = pickSeed===id?null:id; renderBag(); toast(pickSeed?"Toque num tile vazio ou arraste.":"Seleção limpa."); };
-      el.addEventListener("dragstart", ev => { ev.dataTransfer.setData("text/plain","seed:"+id); });
+      el.innerHTML=`<div style="font-size:22px">${t.e[0]}</div><div><b>${t.name}</b><div class="tiny">${S.seeds[id]} • ${t.grow} min</div></div>`;
+      el.addEventListener("click", ev => {
+        if (skipClick){ skipClick=false; return; }
+        pickSeed = pickSeed===id?null:id; renderBag(); toast(pickSeed?"Toque no chão ou arraste.":"Seleção limpa.");
+      });
+      bindCarry(el, "seed:"+id, t.e[0]);
       list.appendChild(el);
     });
     if (S.fertilizer){
       const el=document.createElement("div"); el.className="seed"; el.draggable=true;
-      el.innerHTML=`<div style="font-size:26px">🧪</div><div><b>Fertilizante</b><div class="tiny">${S.fertilizer} un.</div></div>`;
-      el.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain","fert"));
+      el.innerHTML=`<div style="font-size:22px">🧪</div><div><b>Fertilizante</b><div class="tiny">${S.fertilizer} un.</div></div>`;
+      bindCarry(el, "fert", "🧪");
       list.appendChild(el);
     }
     if (S.partners){
       const el=document.createElement("div"); el.className="seed"; el.draggable=true;
-      el.innerHTML=`<div style="font-size:26px">🤝</div><div><b>Sócio</b><div class="tiny">${S.partners} • 7x7 / 48h</div></div>`;
-      el.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain","socio"));
+      el.innerHTML=`<div style="font-size:22px">🤝</div><div><b>Sócio</b><div class="tiny">${S.partners} • 7x7 / 48h</div></div>`;
+      bindCarry(el, "socio", "🤝");
       list.appendChild(el);
     }
     Object.keys(S.decos||{}).forEach(id=>{
       if (!S.decos[id]) return;
       const d=DECOS.find(z=>z.id===id); if(!d) return;
       const el=document.createElement("div"); el.className="seed"; el.draggable=true;
-      el.innerHTML=`<div style="font-size:26px">${d.emoji}</div><div><b>${d.name}</b><div class="tiny">${S.decos[id]}</div></div>`;
-      el.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain","deco:"+id));
+      el.innerHTML=`<div style="font-size:22px">${d.emoji}</div><div><b>${d.name}</b><div class="tiny">${S.decos[id]}</div></div>`;
+      bindCarry(el, "deco:"+id, d.emoji);
       list.appendChild(el);
     });
   }
@@ -999,58 +1069,111 @@
     }
   }
 
-  const board=document.getElementById("board");
-  board.addEventListener("pointerdown", ev=>{
-    if (ev.button!==0 && ev.pointerType==="mouse") return;
-    hideCtx();
-    const w=worldOf(ev.clientX, ev.clientY);
-    drag = { x0:ev.clientX, y0:ev.clientY, camX:S.cam.x, camY:S.cam.y, moved:false, wx:w.x, wy:w.y };
-    const c=cell(w.x,w.y);
-    if (c && c.tree && !c.tree.dead){
-      const def=TM[c.tree.id];
-      hold = { t:Date.now(), x:w.x, y:w.y, shown:false, done:false, gem:def.gem };
-    } else hold=null;
-  });
-  window.addEventListener("pointermove", ev=>{
-    if (!drag) return;
-    const dx=ev.clientX-drag.x0, dy=ev.clientY-drag.y0;
-    if (Math.hypot(dx,dy)>8){
-      drag.moved=true;
-      board.classList.add("drag");
-      S.cam.x = drag.camX - dx;
-      S.cam.y = drag.camY - dy;
-      if (hold){ hold=null; document.getElementById("holdGem").style.display="none"; }
-      if (now()-lastRender>30){ lastRender=now(); renderWorld(); }
+  function showGhost(emoji, x, y){
+    const g=document.getElementById("ghost");
+    g.textContent=emoji; g.classList.add("on");
+    g.style.left=x+"px"; g.style.top=y+"px";
+  }
+  function hideGhost(){ document.getElementById("ghost").classList.remove("on"); }
+  function bindCarry(el, kind, emoji){
+    el.addEventListener("dragstart", ev => {
+      ev.dataTransfer.setData("text/plain", kind);
+    });
+    el.addEventListener("pointerdown", ev => {
+      if (ev.button!==0 && ev.pointerType==="mouse") return;
+      ev.stopPropagation();
+      carry = { kind, emoji, x:ev.clientX, y:ev.clientY, moved:false, id:ev.pointerId };
+      try { el.setPointerCapture(ev.pointerId); } catch(e){}
+    });
+  }
+  function tickHold(clientX, clientY){
+    if (!hold || hold.done) return;
+    const dt=Date.now()-hold.t;
+    const g=document.getElementById("holdGem");
+    if (dt>280){
+      g.style.display="block";
+      g.style.left=Math.min(window.innerWidth-130, (clientX||0)+10)+"px";
+      g.style.top=Math.max(48, (clientY||80)-36)+"px";
+      g.textContent="Segure: "+hold.gem+" 💎";
+      if (!hold.shown){ hold.shown=true; S.patience.holds++; }
     }
-    if (hold && !hold.done){
-      const dt=Date.now()-hold.t;
-      const g=document.getElementById("holdGem");
-      if (dt>350){
-        g.style.display="block";
-        g.style.left=ev.clientX+12+"px";
-        g.style.top=ev.clientY+12+"px";
-        g.textContent="Segure: "+hold.gem+" 💎 para crescer";
-        hold.shown=true;
-        S.patience.holds++;
-      }
-      if (dt>1250){
-        const c=cell(hold.x,hold.y);
-        if (c&&c.tree) gemBoost(c,c.tree);
-        hold.done=true;
-        g.style.display="none";
-        save(); renderAll();
-      }
+    if (dt>1100){
+      const c=cell(hold.x,hold.y);
+      if (c&&c.tree) gemBoost(c,c.tree);
+      hold.done=true;
+      g.style.display="none";
+      save(); renderAll();
     }
-  });
-  window.addEventListener("pointerup", ev=>{
+  }
+  function endPointer(ev){
     document.getElementById("holdGem").style.display="none";
     board.classList.remove("drag");
+    if (holdWatch){ clearInterval(holdWatch); holdWatch=null; }
+    if (carry){
+      const did=carry.moved;
+      const kind=carry.kind;
+      const x=ev.clientX, y=ev.clientY;
+      skipClick = !!did;
+      carry=null; hideGhost();
+      if (did){
+        const w=worldOf(x,y);
+        applyDrop(kind, w.x, w.y);
+        save(); renderAll(); renderBag();
+      }
+      return;
+    }
     if (!drag) return;
     const moved=drag.moved, hx=drag.wx, hy=drag.wy, doneHold=hold&&hold.done;
     const px=ev.clientX, py=ev.clientY;
     drag=null; hold=null;
     if (!moved && !doneHold) onTileTap(hx,hy,px,py);
+  }
+
+  const board=document.getElementById("board");
+  board.addEventListener("pointerdown", ev=>{
+    if (ev.button!==0 && ev.pointerType==="mouse") return;
+    if (carry) return;
+    ev.preventDefault();
+    hideCtx();
+    const w=worldOf(ev.clientX, ev.clientY);
+    drag = { x0:ev.clientX, y0:ev.clientY, camX:S.cam.x, camY:S.cam.y, moved:false, wx:w.x, wy:w.y, id:ev.pointerId };
+    try { board.setPointerCapture(ev.pointerId); } catch(e){}
+    const c=cell(w.x,w.y);
+    if (c && c.tree && !c.tree.dead){
+      const def=TM[c.tree.id];
+      hold = { t:Date.now(), x:w.x, y:w.y, shown:false, done:false, gem:def.gem };
+      if (holdWatch) clearInterval(holdWatch);
+      holdWatch = setInterval(()=> tickHold(drag?drag.x0:0, drag?drag.y0:0), 80);
+    } else hold=null;
   });
+  window.addEventListener("pointermove", ev=>{
+    if (carry){
+      const dx=ev.clientX-carry.x, dy=ev.clientY-carry.y;
+      if (Math.hypot(dx,dy)>8) carry.moved=true;
+      if (carry.moved) showGhost(carry.emoji, ev.clientX, ev.clientY);
+      return;
+    }
+    if (!drag) return;
+    const dx=ev.clientX-drag.x0, dy=ev.clientY-drag.y0;
+    const dist=Math.hypot(dx,dy);
+    const slop = ev.pointerType==="touch" ? 14 : 8;
+    if (dist>slop){
+      drag.moved=true;
+      board.classList.add("drag");
+      S.cam.x = drag.camX - dx;
+      S.cam.y = drag.camY - dy;
+      if (hold && dist>20){
+        hold=null;
+        document.getElementById("holdGem").style.display="none";
+        if (holdWatch){ clearInterval(holdWatch); holdWatch=null; }
+      }
+      if (performance.now()-lastRender>16){ lastRender=performance.now(); renderWorld(); }
+    }
+    if (hold && !hold.done) tickHold(ev.clientX, ev.clientY);
+  }, {passive:false});
+  window.addEventListener("pointerup", endPointer);
+  window.addEventListener("pointercancel", endPointer);
+  board.addEventListener("contextmenu", ev=>ev.preventDefault());
 
   board.addEventListener("dragover", ev=>ev.preventDefault());
   board.addEventListener("drop", ev=>{
@@ -1435,7 +1558,10 @@
   }, 1000);
   setInterval(()=>{ renderWorld(); save(); }, 2500);
   setInterval(fetchWeather, 10*60*1000);
-  window.addEventListener("resize", renderWorld);
+  window.addEventListener("resize", ()=>{ refreshTileSize(); renderWorld(); });
+  window.addEventListener("touchmove", ev=>{
+    if (drag || carry) ev.preventDefault();
+  }, {passive:false});
   window.addEventListener("beforeunload", save);
 })();
 </script>
