@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#3d2a18" />
+<title>Wait It Grow</title>
+<link rel="icon" href="./logo.svg" type="image/svg+xml" />
+<link rel="manifest" href="./manifest.json" />
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root {
+    --paper: #f4e8c8;
+    --ink: #2b2116;
+    --wood: #8b5a2b;
+    --leaf: #2f6b38;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: "Trebuchet MS", "Segoe UI", sans-serif; color: var(--ink); background: #132016; user-select: none; }
+  #sky { position: fixed; inset: 0; z-index: 0; background: linear-gradient(#7ec8e3, #cfe88a); transition: background 1.2s; }
+  #sky.night { background: linear-gradient(#0b1028, #24305a 60%, #3a2a48); }
+  #sky.dusk { background: linear-gradient(#f08a4b, #7a3a6a 70%, #1c1630); }
+  #sky.dawn { background: linear-gradient(#ffb38a, #7ec8e3); }
+  #sky.snow { background: linear-gradient(#c5d8ea, #eef4fa); }
+  #sky.snow.night { background: linear-gradient(#1a2438, #3a4860); }
+  #fx { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+  .flake, .drop { position: absolute; top: -20px; animation: fall linear infinite; }
+  .flake { color: #fff; font-size: 12px; text-shadow: 0 0 4px #fff; }
+  .drop { width: 2px; height: 14px; background: rgba(220,240,255,.55); }
+  @keyframes fall { to { transform: translateY(110vh); } }
+  header.hud {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 7px 10px; background: rgba(30,20,12,.88); color: var(--paper);
+    border-bottom: 3px solid #2a1b0e;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; color: #ffe7a3; }
+  .brand img { width: 28px; height: 28px; }
+  .chip { background: #1e140c; border: 2px solid #8b5a2b; border-radius: 999px; padding: 3px 10px; font-size: 13px; }
+  .chip b { color: #ffe7a3; }
+  .grow { flex: 1; }
+  .iconbtn { background: #5a3a1c; color: #fff4d2; border: 2px solid #c48a3a; border-radius: 10px; padding: 6px 10px; cursor: pointer; font-weight: 700; }
+  .iconbtn.active { background: #2f6b38; border-color: #8fe08a; }
+  #board {
+    position: fixed; inset: 0; z-index: 3; cursor: grab;
+  }
+  #board.drag { cursor: grabbing; }
+  .tile {
+    position: absolute; width: 76px; height: 76px; border-radius: 12px;
+    display: grid; place-items: center; overflow: hidden;
+    box-shadow: inset 0 -7px 0 rgba(0,0,0,.14);
+  }
+  .tile.normal { background: linear-gradient(#8bc46a, #5e9a42); }
+  .tile.fertile { background: linear-gradient(#6b9a3a, #3d6b22); }
+  .tile.path { background: linear-gradient(#c9a36a, #9a7540); }
+  .tile.stream { background: linear-gradient(#5ec4d6, #2a7ea0); }
+  .tile.sand { background: linear-gradient(#f0d48a, #d2b15a); }
+  .tile.unlockable {
+    background: rgba(90,70,48,.55); outline: 2px dashed #ffe7a3; cursor: pointer;
+  }
+  .tile.unlockable::after { content: "+"; color: #ffe7a3; font-size: 28px; font-weight: 800; }
+  .plant { font-size: 34px; line-height: 1; z-index: 2; pointer-events: none; filter: drop-shadow(0 3px 0 rgba(0,0,0,.18)); }
+  .plant.dead { filter: grayscale(1) brightness(.7); }
+  .bars { position: absolute; left: 6px; right: 6px; bottom: 6px; display: grid; gap: 3px; z-index: 4; }
+  .bar { height: 5px; background: rgba(0,0,0,.35); border-radius: 4px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; }
+  .bar.coin > i { background: #ffe36b; }
+  .bar.water > i { background: #4ec3f0; }
+  .bar.water.crit > i { background: #e85d4c; }
+  .walker {
+    position: absolute; bottom: 8px; width: 14px; height: 14px; border-radius: 50%;
+    z-index: 3; pointer-events: none; animation: walk 6s linear infinite;
+    box-shadow: 0 2px 0 rgba(0,0,0,.2);
+  }
+  @keyframes walk { from { left: -16px; } to { left: 78px; } }
+  .socio {
+    position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid #fff; z-index: 5; box-shadow: 0 2px 0 rgba(0,0,0,.25);
+  }
+  .gemHint {
+    position: absolute; top: 8px; right: 6px; background: #1e140c; color: #9be7ff;
+    font-size: 11px; font-weight: 800; padding: 2px 5px; border-radius: 6px; z-index: 6;
+  }
+  .deco { position: absolute; top: 2px; right: 4px; font-size: 14px; z-index: 5; pointer-events: none; }
+  #dock {
+    position: fixed; left: 10px; bottom: 10px; z-index: 22;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #dock button {
+    width: 52px; height: 52px; border-radius: 14px; border: 3px solid #8b5a2b;
+    background: #f4e8c8; font-size: 22px; cursor: pointer;
+  }
+  #bag {
+    position: fixed; left: 70px; bottom: 10px; top: 58px; width: min(230px, 70vw);
+    background: rgba(247,237,212,.96); border: 3px solid #5c3a1a; border-radius: 14px;
+    z-index: 21; display: none; flex-direction: column; padding: 10px; overflow: auto;
+  }
+  #bag.show { display: flex; }
+  #bag h3 { font-size: 14px; margin-bottom: 8px; }
+  .seed {
+    display: flex; gap: 8px; align-items: center; background: #fff8e6;
+    border: 2px solid #c9a36a; border-radius: 10px; padding: 7px; margin-bottom: 6px; cursor: grab;
+  }
+  .seed.pick { outline: 3px solid #2f6b38; }
+  .tiny { font-size: 11px; color: #6a5640; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 40; background: rgba(10,8,6,.55);
+    display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    width: min(740px, 96vw); max-height: 88vh; overflow: auto;
+    background: #f7edd4; border: 4px solid #5c3a1a; border-radius: 16px; padding: 14px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .close, .navbtn, .buy {
+    border: 0; border-radius: 8px; padding: 6px 10px; font-weight: 800; cursor: pointer;
+  }
+  .close { background: #8b2a2a; color: #fff; }
+  .navbtn { background: #e8d7b0; border: 2px solid #8b5a2b; }
+  .buy { background: #2f6b38; color: #fff; width: 100%; margin-top: 8px; padding: 8px; }
+  .buy:disabled { background: #888; }
+  .hint { font-size: 12px; color: #5c4a34; margin: 6px 0 10px; }
+  .gridcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .card { background: #fff8e6; border: 2px solid #c9a36a; border-radius: 12px; padding: 10px; }
+  .card h3 { font-size: 14px; margin-bottom: 4px; }
+  .card p { font-size: 12px; line-height: 1.35; color: #4a3a28; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .tabs button { background: #e8d7b0; border: 2px solid #8b5a2b; border-radius: 8px; padding: 5px 8px; cursor: pointer; font-weight: 700; }
+  .tabs button.on { background: #2f6b38; color: #fff; }
+  .book {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 280px;
+    background: #fffaf0; border: 3px solid #c9a36a; border-radius: 8px; padding: 12px;
+  }
+  .page h3 { font-size: 18px; }
+  .page p { font-size: 13px; line-height: 1.4; margin-top: 6px; }
+  .page .big { font-size: 48px; }
+  #toast {
+    position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+    background: #1e140c; color: #fff4d2; border: 2px solid #c48a3a;
+    padding: 8px 14px; border-radius: 999px; z-index: 80; display: none; font-weight: 700; font-size: 13px;
+  }
+  #ctx {
+    position: fixed; z-index: 30; display: none; min-width: 180px;
+    background: #fff8e6; border: 3px solid #5c3a1a; border-radius: 12px; padding: 8px;
+  }
+  #ctx button { display: block; width: 100%; text-align: left; margin: 4px 0; padding: 7px; border: 0; background: #f4e8c8; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  #holdGem {
+    position: fixed; z-index: 31; display: none; background: #1e140c; color: #9be7ff;
+    border: 2px solid #5ec8e8; border-radius: 10px; padding: 6px 10px; font-weight: 800; font-size: 13px;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 14px; }
+  .field input, .field select { padding: 8px; border-radius: 8px; border: 2px solid #8b5a2b; background: #fffaf0; }
+  .devbox { background: #2a1b0e; color: #ffe7a3; padding: 10px; border-radius: 10px; margin-top: 10px; }
+  .devbox label { display: block; margin: 8px 0 4px; font-size: 12px; }
+  input[type=range] { width: 100%; }
+  #focusHud {
+    display: none; position: fixed; top: 8px; right: 8px; z-index: 25;
+    background: #1e140c; color: #ffe7a3; border: 2px solid #c48a3a; border-radius: 10px; padding: 6px 10px; font-size: 12px;
+  }
+  body.focusMode header.hud, body.focusMode #dock, body.focusMode #bag { display: none !important; }
+  body.focusMode #focusHud { display: block; }
+  #tutor {
+    position: fixed; z-index: 55; display: none; max-width: 270px;
+    background: #1e140c; color: #ffe7a3; border: 3px solid #c48a3a;
+    border-radius: 14px; padding: 10px 12px; font-size: 14px; font-weight: 700;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  #tutor .tiny { color: #d7c39a; font-weight: 600; margin-top: 6px; }
+  .spot { outline: 4px solid #ffe36b !important; box-shadow: 0 0 0 6px rgba(255,227,107,.4); position: relative; z-index: 24; }
+  #peoplePop {
+    position: fixed; left: 70px; bottom: 70px; z-index: 23; display: none;
+    width: min(250px, 72vw); background: #f7edd4; border: 3px solid #5c3a1a;
+    border-radius: 14px; padding: 10px; max-height: 50vh; overflow: auto;
+  }
+  #peoplePop.show { display: block; }
+  .person {
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    background: #fff8e6; border: 2px solid #c9a36a; border-radius: 10px;
+    padding: 6px; margin: 6px 0; font-size: 13px;
+  }
+  .person button { background: #2f6b38; color: #fff; border: 0; border-radius: 8px; padding: 5px 8px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="fx"></div>
+<header class="hud">
+  <div class="brand"><img src="./logo.svg" alt="logo" /> Wait It Grow</div>
+  <div class="chip">🪙 <b id="coins">0</b></div>
+  <div class="chip">💎 <b id="gems">0</b></div>
+  <div class="chip">📅 <b id="dayn">1</b></div>
+  <div class="chip"><span id="clockMoon">☀️</span> <b id="clock">--:--</b></div>
+  <div class="chip" id="seasonChip">🌿 <b id="seasonTxt">—</b></div>
+  <div class="chip">🧘 <b id="patTxt">—</b></div>
+  <div class="grow"></div>
+  <button class="iconbtn" id="btnFocus">🎯 Foco</button>
+</header>
+<div id="board"></div>
+<aside id="bag">
+  <h3>🎒 Mochila — arraste para o tile</h3>
+  <div id="bagList"></div>
+</aside>
+<nav id="dock">
+  <button id="btnPeople" title="Outras pessoas">👥</button>
+  <button id="btnBag" title="Mochila">🎒</button>
+  <button id="btnShop" title="Loja">🛒</button>
+  <button id="btnBook" title="Livro">📖</button>
+  <button id="btnSet" title="Ajustes">⚙️</button>
+</nav>
+<div id="peoplePop">
+  <b>👥 Outras pessoas</b>
+  <p class="tiny" id="peerStatus">procurando na rede...</p>
+  <p class="tiny">Até 5 jardins colados. Cada um fica com a soma dos dois.</p>
+  <div id="peopleList"></div>
+</div>
+<div id="tutor"></div>
+<div id="focusHud">Modo foco • 2x • toque para sair</div>
+<div id="toast"></div>
+<div id="ctx"></div>
+<div id="holdGem"></div>
+
+<div class="overlay show" id="ovHello">
+  <div class="panel" style="width:min(440px,96vw)">
+    <div class="row"><h2>🌱 Bem-vindo a Wait It Grow</h2></div>
+    <p class="hint">Antes de plantar, como você quer ser chamado? Os dados ficam só neste aparelho.</p>
+    <label class="field">Nome de usuário
+      <input id="inName" maxlength="18" placeholder="seu nome" />
+    </label>
+    <label class="field">Idade
+      <input id="inAge" type="number" min="5" max="99" placeholder="idade" />
+    </label>
+    <label class="field">Gênero
+      <select id="inGen">
+        <option value="nao">prefiro não falar</option>
+        <option value="menino">menino</option>
+        <option value="menina">menina</option>
+      </select>
+    </label>
+    <button class="buy" id="btnStart">Entrar no jardim</button>
+  </div>
+</div>
+
+<div class="overlay" id="ovShop">
+  <div class="panel">
+    <div class="row"><h2>🛒 Loja</h2><button class="close" data-close="ovShop">Fechar</button></div>
+    <div class="tabs">
+      <button class="on" data-tab="seeds">Sementes</button>
+      <button data-tab="tiles">Tiles</button>
+      <button data-tab="gems">Gemas</button>
+      <button data-tab="extra">Extras</button>
+      <button data-tab="season">Estação</button>
+    </div>
+    <p class="hint" id="shopHint"></p>
+    <div class="gridcards" id="shopGrid"></div>
+  </div>
+</div>
+
+<div class="overlay" id="ovBook">
+  <div class="panel">
+    <div class="row"><h2>📖 Livro das árvores</h2><button class="close" data-close="ovBook">Fechar</button></div>
+    <p class="hint">Uma página, duas árvores. Passe com as setas.</p>
+    <div class="book" id="bookPages"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="navbtn" id="bookPrev">◀</button>
+      <b id="bookNum">1</b>
+      <button class="navbtn" id="bookNext">▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovSet">
+  <div class="panel">
+    <div class="row"><h2>⚙️ Ajustes</h2><button class="close" data-close="ovSet">Fechar</button></div>
+    <p class="hint">Segure e arraste o mundo para mover a câmera. Chuva de verdade rega o jardim. Ofensiva diária ao abrir o jogo.</p>
+    <p>Jogador: <b id="setName">—</b> • Paciência: <b id="setPat">—</b></p>
+    <p>Clima: <b id="setWeather">—</b></p>
+    <p>Ofensiva: <b id="setStreak">0</b> dias</p>
+    <button class="navbtn" id="btnGeo" style="margin-top:8px">Usar minha localização</button>
+    <button class="close" id="btnReset" style="margin-top:8px">Resetar save</button>
+    <div id="devPanel" class="devbox" style="display:none">
+      <h3>🛠️ Modo Dev</h3>
+      <label><input type="checkbox" id="devInfinite" /> Moedas e gemas infinitas</label>
+      <label>Velocidade das árvores: <span id="devSpeedLbl">1x</span></label>
+      <input type="range" id="devSpeed" min="1" max="100" value="1" />
+      <label>Avançar horas: <span id="devHoursLbl">0</span></label>
+      <input type="range" id="devHours" min="0" max="72" value="0" />
+      <button class="navbtn" id="btnDevOff">Desativar modo dev</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SAVE = "waitItGrow_v3";
+  const OFFLINE_RATE = 0.04;
+  const TS = 80;
+
+  const TREES = [
+    { id:"carvalho", name:"Carvalho", e:["🌱","🌿","🌳","🌳"], seed:25, grow:18, life:48, cps:0.08, reward:40, fruit:false, fruitV:0, gem:2, desc:"Forte e paciente.", rare:false },
+    { id:"pinheiro", name:"Pinheiro", e:["🌱","🌿","🌲","🌲"], seed:22, grow:16, life:44, cps:0.07, reward:36, fruit:false, fruitV:0, gem:2, desc:"Cheiro de floresta. Brilha no Natal.", rare:false },
+    { id:"cerejeira", name:"Cerejeira", e:["🌱","🌿","🌸","🍒"], seed:40, grow:20, life:40, cps:0.09, reward:55, fruit:true, fruitV:12, gem:3, desc:"Flores e frutas.", rare:false },
+    { id:"macieira", name:"Macieira", e:["🌱","🌿","🌳","🍎"], seed:38, grow:20, life:42, cps:0.1, reward:52, fruit:true, fruitV:10, gem:3, desc:"Maçãs no clique.", rare:false },
+    { id:"bordo", name:"Bordo", e:["🌱","🌿","🍁","🍁"], seed:30, grow:18, life:44, cps:0.08, reward:44, fruit:false, fruitV:0, gem:2, desc:"Folhas vermelhas.", rare:false },
+    { id:"betula", name:"Bétula", e:["🌱","🌿","🌳","🌳"], seed:20, grow:12, life:32, cps:0.06, reward:30, fruit:false, fruitV:0, gem:2, desc:"Tronco claro.", rare:false },
+    { id:"salgueiro", name:"Salgueiro", e:["🌱","🌿","🌳","🌳"], seed:28, grow:17, life:40, cps:0.07, reward:42, fruit:false, fruitV:0, gem:2, desc:"Gosta de água.", rare:false },
+    { id:"palmeira", name:"Palmeira", e:["🌱","🌿","🌴","🌴"], seed:45, grow:24, life:50, cps:0.11, reward:60, fruit:false, fruitV:0, gem:3, desc:"Clima quente.", rare:false },
+    { id:"bambu", name:"Bambu", e:["🌱","🌿","🎋","🎋"], seed:18, grow:7, life:22, cps:0.05, reward:24, fruit:false, fruitV:0, gem:1, desc:"Cresce rápido.", rare:false },
+    { id:"cacto", name:"Cacto", e:["🌱","🌵","🌵","🌵"], seed:16, grow:10, life:55, cps:0.04, reward:28, fruit:false, fruitV:0, gem:1, desc:"Aguenta mais a seca.", rare:false },
+    { id:"limoeiro", name:"Limoeiro", e:["🌱","🌿","🍋","🍋"], seed:36, grow:18, life:38, cps:0.09, reward:50, fruit:true, fruitV:9, gem:3, desc:"Azedinho e ouro.", rare:false },
+    { id:"laranjeira", name:"Laranjeira", e:["🌱","🌿","🍊","🍊"], seed:36, grow:18, life:38, cps:0.09, reward:50, fruit:true, fruitV:9, gem:3, desc:"Cheiro de quintal.", rare:false },
+    { id:"pessegueiro", name:"Pessegueiro", e:["🌱","🌿","🍑","🍑"], seed:42, grow:20, life:36, cps:0.1, reward:58, fruit:true, fruitV:11, gem:3, desc:"Fruta macia.", rare:false },
+    { id:"bananeira", name:"Bananeira", e:["🌱","🌿","🍌","🍌"], seed:34, grow:14, life:32, cps:0.08, reward:46, fruit:true, fruitV:8, gem:2, desc:"Cachos dourados.", rare:false },
+    { id:"coqueiro", name:"Coqueiro", e:["🌱","🌿","🌴","🥥"], seed:50, grow:28, life:58, cps:0.12, reward:70, fruit:true, fruitV:14, gem:4, desc:"Ama tile de areia nas férias.", rare:false },
+    { id:"sakura", name:"Sakura", e:["🌱","🌿","🌸","🌸"], seed:55, grow:22, life:34, cps:0.13, reward:80, fruit:false, fruitV:0, gem:4, desc:"Bonita e breve.", rare:true },
+    { id:"sequoia", name:"Sequoia", e:["🌱","🌿","🌲","🌲"], seed:80, grow:50, life:110, cps:0.2, reward:140, fruit:false, fruitV:0, gem:6, desc:"A mais paciente.", rare:true },
+    { id:"bonsai", name:"Bonsai", e:["🌱","🌿","🪴","🪴"], seed:60, grow:24, life:60, cps:0.1, reward:75, fruit:false, fruitV:0, gem:4, desc:"Pequeno e caprichado.", rare:true },
+    { id:"magnolia", name:"Magnólia", e:["🌱","🌿","🌺","🌺"], seed:48, grow:22, life:44, cps:0.11, reward:66, fruit:false, fruitV:0, gem:3, desc:"Flor grande.", rare:false },
+    { id:"eucalipto", name:"Eucalipto", e:["🌱","🌿","🌳","🌳"], seed:32, grow:16, life:46, cps:0.08, reward:48, fruit:false, fruitV:0, gem:2, desc:"Alto e cheiroso.", rare:false },
+    { id:"oliveira", name:"Oliveira", e:["🌱","🌿","🫒","🫒"], seed:58, grow:32, life:80, cps:0.14, reward:90, fruit:true, fruitV:13, gem:4, desc:"Vive muito.", rare:true },
+    { id:"figueira", name:"Figueira", e:["🌱","🌿","🌳","🍇"], seed:40, grow:20, life:40, cps:0.1, reward:56, fruit:true, fruitV:10, gem:3, desc:"Figos no clique.", rare:false },
+    { id:"ameixeira", name:"Ameixeira", e:["🌱","🌿","🌳","🟣"], seed:37, grow:17, life:36, cps:0.09, reward:51, fruit:true, fruitV:9, gem:3, desc:"Ameixas doces.", rare:false },
+    { id:"nogueira", name:"Nogueira", e:["🌱","🌿","🌳","🥜"], seed:44, grow:26, life:52, cps:0.11, reward:64, fruit:true, fruitV:12, gem:3, desc:"Nozes no fim.", rare:false },
+    { id:"baoba", name:"Baobá", e:["🌱","🌿","🌳","🌳"], seed:70, grow:40, life:90, cps:0.18, reward:120, fruit:false, fruitV:0, gem:5, desc:"Só aparece no mês dos baobás.", rare:true, special:"jan" }
+  ];
+  const TM = Object.fromEntries(TREES.map(t => [t.id, t]));
+  const TILES = {
+    normal: { id:"normal", name:"Grama", emoji:"🟩", cost:15, grow:1, cps:1, desc:"Tile básico." },
+    fertile: { id:"fertile", name:"Fertilizado", emoji:"🟫", cost:60, grow:1.35, cps:1.2, desc:"Cresce melhor." },
+    path: { id:"path", name:"Caminho", emoji:"🟨", cost:35, grow:0.9, cps:1, desc:"Círculos passam de dia." },
+    stream: { id:"stream", name:"Riacho", emoji:"🟦", cost:90, grow:1.15, cps:1.1, desc:"Molha os vizinhos." },
+    sand: { id:"sand", name:"Areia", emoji:"🏖️", cost:40, grow:1.05, cps:1.05, desc:"Férias de julho. Coqueiro adora." }
+  };
+  const DECOS = [
+    { id:"luzes", name:"Luzes", emoji:"✨", cost:25 },
+    { id:"estrela", name:"Estrela", emoji:"⭐", cost:30 },
+    { id:"presente", name:"Presente", emoji:"🎁", cost:20 },
+    { id:"pinho", name:"Pinho natalino", emoji:"🎄", cost:35 }
+  ];
+  const RARE = TREES.filter(t => t.rare && t.id !== "baoba").map(t => t.id);
+
+  function dayKey(t){ const d=new Date(t); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+  function emptyCell(type){
+    return { owned:true, type:type||"normal", tree:null, fertilizeUntil:0, partnerUntil:0, partnerHue:0, deco:null };
+  }
+  function defaultState(){
+    const cells = {};
+    for (let y=-1;y<=1;y++) for (let x=-1;x<=1;x++) cells[x+","+y] = emptyCell("normal");
+    return {
+      coins: 220, gems: 3, day: 1,
+      lastDayKey: dayKey(Date.now()),
+      lastReal: Date.now(),
+      seeds: { bambu: 1 },
+      discovered: ["bambu"],
+      fertilizer: 1, partners: 0, decos: {},
+      cells, cam:{x:0,y:0},
+      profile: null,
+      raining: false, weatherText: "...", lat:null, lon:null,
+      focus: false,
+      streak: 0, lastStreakDay: null, streakClaimed: null,
+      patience: { waits:0, rushes:0, overwaters:0, goodWater:0, taps:0, holds:0, focusSec:0 },
+      stats: { planted:0, harvested:0 },
+      tutorial: 0,
+      party: [],
+      peerNameId: null,
+      dev: { on:false, infinite:false, speed:1, hours:0 }
+    };
+  }
+
+  let S = defaultState();
+  let shopTab = "seeds";
+  let bookPage = 0;
+  let pickSeed = null;
+  let toastT = 0;
+  let hold = null;
+  let drag = null;
+  let lastRender = 0;
+
+  const now = () => Date.now() + (S.dev.on ? S.dev.hours*3600000 : 0);
+  const speed = () => S.dev.on ? S.dev.speed : 1;
+  const hourOf = t => new Date(t).getHours();
+  const isDay = t => { const h=hourOf(t); return h>=6 && h<19; };
+  const skyClass = t => {
+    if (isXmas()) return isDay(t) ? "snow" : "snow night";
+    const h=hourOf(t);
+    if (h>=6&&h<8) return "dawn";
+    if (h>=8&&h<17) return "";
+    if (h>=17&&h<19) return "dusk";
+    return "night";
+  };
+  function dateParts(){ const d=new Date(now()); return { m:d.getMonth()+1, day:d.getDate() }; }
+  const isAprilFools = () => { const p=dateParts(); return p.m===4 && p.day===1; };
+  const isJan = () => dateParts().m===1;
+  const isVacay = () => { const p=dateParts(); return p.m===7 && p.day>=10 && p.day<=24; };
+  const isXmas = () => dateParts().m===12;
+  function seasonLabel(){
+    if (isAprilFools()) return "1º de abril";
+    if (isJan()) return "mês dos baobás";
+    if (isVacay()) return "férias";
+    if (isXmas()) return "Natal";
+    return "estação comum";
+  }
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(SAVE);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      S = Object.assign(defaultState(), p);
+      S.dev = Object.assign({on:false,infinite:false,speed:1,hours:0}, S.dev||{});
+      S.cam = S.cam || {x:0,y:0};
+      S.patience = Object.assign(defaultState().patience, S.patience||{});
+      S.focus = false;
+      if (!S.discovered) S.discovered = Object.keys(S.seeds||{});
+      if (S.seeds && S.seeds.sorte) delete S.seeds.sorte;
+      S.discovered = (S.discovered||[]).filter(id => id !== "sorte");
+    } catch(e){}
+  }
+  function save(){ S.lastReal = Date.now(); try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch(e){} }
+  function applyAway(){
+    const last = S.lastReal || Date.now();
+    const away = Math.min(Math.max(0, Date.now() - last), 36*3600000);
+    if (away > 8000) tick(away * OFFLINE_RATE);
+    S.lastReal = Date.now();
+  }
+
+  function toast(m){
+    const el = document.getElementById("toast");
+    el.textContent = m; el.style.display = "block";
+    clearTimeout(toastT); toastT = setTimeout(()=>el.style.display="none", 2300);
+  }
+  function can(c,g){ if (S.dev.on && S.dev.infinite) return true; return S.coins>=(c||0) && S.gems>=(g||0); }
+  function spend(c,g){
+    if (S.dev.on && S.dev.infinite) return true;
+    if (!can(c,g)) return false;
+    S.coins -= (c||0); S.gems -= (g||0); return true;
+  }
+  function gain(c,g){ S.coins += (c||0); S.gems += (g||0); }
+  function discover(id){
+    S.discovered = S.discovered || [];
+    if (id && TM[id] && !S.discovered.includes(id)) S.discovered.push(id);
+  }
+  function addSeed(id,n){
+    S.seeds[id] = (S.seeds[id]||0) + n;
+    discover(id);
+  }
+  function rollMystery(rare){
+    const pool = TREES.filter(t => {
+      if (t.id === "baoba") return isJan();
+      if (rare) return t.rare;
+      return !t.rare;
+    });
+    const t = pool[Math.floor(Math.random()*pool.length)] || TREES[0];
+    addSeed(t.id, 1);
+    toast("O pacote era: " + t.name + "!");
+    if (S.tutorial === 3) setTutorial(4);
+    return t;
+  }
+
+  function key(x,y){ return x+","+y; }
+  function cell(x,y){ return S.cells[key(x,y)]; }
+  function neighbors(x,y){
+    const o=[];
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) if(dx||dy) o.push([x+dx,y+dy]);
+    return o;
+  }
+  function ortho(x,y){ return [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]; }
+  function ownedNear(x,y){ return ortho(x,y).some(([a,b]) => cell(a,b) && cell(a,b).owned); }
+  function streamNear(x,y){
+    return neighbors(x,y).some(([a,b]) => { const c=cell(a,b); return c && c.type==="stream"; });
+  }
+  function partnerCovers(x,y){
+    const t=now();
+    for (const k in S.cells){
+      const c=S.cells[k]; if (!c.partnerUntil || c.partnerUntil<=t) continue;
+      const [px,py]=k.split(",").map(Number);
+      if (Math.abs(px-x)<=3 && Math.abs(py-y)<=3) return true;
+    }
+    return false;
+  }
+  function tileMult(c, treeId){
+    const t = TILES[c.type] || TILES.normal;
+    let grow=t.grow, cps=t.cps;
+    if (c.fertilizeUntil>now()){ grow*=1.4; cps*=1.15; }
+    if (c.type==="sand" && treeId==="coqueiro"){ grow*=1.25; cps*=1.3; }
+    if (isXmas() && treeId==="pinheiro"){ cps*=1.25; }
+    if (c.deco) cps*=1.05;
+    return {grow,cps};
+  }
+
+  function grown(tree){
+    const def=TM[tree.id];
+    const age=(now()-tree.planted)*speed()/60000;
+    return age >= def.grow / tileMult({type:tree._type||"normal",fertilizeUntil:0,deco:null}, tree.id).grow;
+  }
+  function stageOf(tree, c){
+    if (tree.dead) return {i:0,label:"foi-se"};
+    const def=TM[tree.id];
+    const age=(now()-tree.planted)*speed()/60000;
+    const need = def.grow / tileMult(c, tree.id).grow;
+    if (age < need*0.35) return {i:0,label:"muda"};
+    if (age < need) return {i:1,label:"jovem"};
+    if (def.fruit && age > need + (def.life-def.grow)*0.3) return {i:3,label:"frutas"};
+    return {i:2,label:"adulta"};
+  }
+  function expired(tree,c){
+    const def=TM[tree.id];
+    const age=(now()-tree.planted)*speed()/60000;
+    return age >= def.life / tileMult(c,tree.id).grow;
+  }
+
+  function patienceLabel(){
+    const p=S.patience;
+    const score = p.waits*0.02 + p.goodWater*2 + p.focusSec*0.01 - p.rushes*4 - p.overwaters*3 - Math.max(0,p.taps-p.goodWater)*0.05;
+    if (score >= 40) return "zen";
+    if (score >= 12) return "paciente";
+    if (score >= 0) return "normal";
+    return "impaciente";
+  }
+
+  function claimStreak(){
+    const k = dayKey(now());
+    if (S.streakClaimed === k) return;
+    const prev = S.lastStreakDay;
+    const yest = dayKey(now()-86400000);
+    if (prev === k) { /* already counted day */ }
+    else if (prev === yest) S.streak += 1;
+    else S.streak = 1;
+    S.lastStreakDay = k;
+    S.streakClaimed = k;
+    const n = S.streak;
+    if (n===1) { gain(20,0); toast("Ofensiva 1: +20 🪙"); }
+    else if (n===2) { gain(30,0); toast("Ofensiva 2: +30 🪙"); }
+    else if (n===3) { gain(45,0); toast("Ofensiva 3: +45 🪙"); }
+    else if (n===4) {
+      const ids = TREES.filter(t=>!t.special).map(t=>t.id);
+      const pick = ids[Math.floor(Math.random()*ids.length)];
+      addSeed(pick,12);
+      toast("Ofensiva 4: 12 sementes de " + TM[pick].name);
+    }
+    else if (n===5) { gain(60,0); toast("Ofensiva 5: +60 🪙"); }
+    else if (n===6) { gain(80,0); toast("Ofensiva 6: +80 🪙"); }
+    else if (n===7) {
+      const pick = RARE[Math.floor(Math.random()*RARE.length)];
+      addSeed(pick,1);
+      toast("Ofensiva 7: semente rara de " + TM[pick].name);
+    }
+    else { const amt = 100 + (n-8)*25; gain(amt,0); toast("Ofensiva "+n+": +"+amt+" 🪙"); }
+  }
+
+  function screenOf(x,y){
+    return {
+      left: window.innerWidth/2 + x*TS - S.cam.x - TS/2,
+      top: window.innerHeight/2 + y*TS - S.cam.y - TS/2 + 10
+    };
+  }
+  function worldOf(px,py){
+    return {
+      x: Math.round((px - window.innerWidth/2 + S.cam.x) / TS),
+      y: Math.round((py - window.innerHeight/2 + S.cam.y - 10) / TS)
+    };
+  }
+
+  function plantAt(x,y,id){
+    const c = cell(x,y);
+    if (!c || !c.owned || c.tree) return false;
+    if (c.type==="path" || c.type==="stream") { toast("Esse tile não recebe muda."); return false; }
+    if (!S.seeds[id]) return false;
+    S.seeds[id]--; if (S.seeds[id]<=0) delete S.seeds[id];
+    c.tree = { id, planted:now(), water:70, critical:false, dead:false, coinBar:0, fruitAt:0, lastWater:now() };
+    S.stats.planted++;
+    pickSeed=null;
+    discover(id);
+    toast("Muda plantada.");
+    if (S.tutorial === 1) setTutorial(2);
+    else if (S.tutorial === 4) setTutorial(5);
+    return true;
+  }
+
+  function waterTree(c, tree, x, y){
+    if (tree.dead) return;
+    if (tree.water >= 92) {
+      S.patience.overwaters++;
+      tree.water = 100;
+      if (Math.random() < 0.45) {
+        tree.dead = true;
+        toast("Encharcou... a planta não aguentou.");
+        return;
+      }
+      toast("Cuidado: água demais.");
+      return;
+    }
+    tree.water = Math.min(100, tree.water + (TM[tree.id].id==="cacto"?22:38));
+    tree.lastWater = now();
+    if (tree.critical && tree.water>20) tree.critical=false;
+    S.patience.goodWater++;
+    toast("Regada.");
+  }
+
+  function harvestFruit(c, tree){
+    const def=TM[tree.id];
+    if (!def.fruit) return false;
+    const st=stageOf(tree,c);
+    if (st.i<3) return false;
+    if (now()-(tree.fruitAt||0) < 40000/speed()) return false;
+    tree.fruitAt = now();
+    const v=Math.floor(def.fruitV * tileMult(c,tree.id).cps);
+    gain(v,0);
+    toast("Colheita +" + v + " 🪙");
+    return true;
+  }
+
+  function gemBoost(c, tree){
+    if (tree.dead) return;
+    const def=TM[tree.id];
+    const need = def.grow * 60000 / speed() / tileMult(c,tree.id).grow;
+    if (now()-tree.planted >= need) { toast("Já cresceu."); return; }
+    if (!spend(0, def.gem)) { toast("Gemas insuficientes."); return; }
+    tree.planted = now() - need;
+    S.patience.rushes++;
+    toast(def.name + " acelerada.");
+    if (S.tutorial === 2) setTutorial(3);
+  }
+
+  function finishTree(x,y,c){
+    const def=TM[c.tree.id];
+    const bonus=Math.floor(def.reward * tileMult(c,c.tree.id).cps);
+    gain(bonus,0);
+    S.stats.harvested++;
+    S.patience.waits += 8;
+    c.tree=null;
+    toast(def.name + " concluiu o ciclo. +" + bonus + " 🪙");
+  }
+
+  function tick(dt){
+    const t=now();
+    const k=dayKey(t);
+    if (k !== S.lastDayKey){
+      S.lastDayKey=k; S.day++;
+      const bonus=15+S.day*2;
+      gain(bonus, S.day%5===0?1:0);
+      toast("Novo dia! +" + bonus + " 🪙");
+    }
+    if (S.focus && !document.hidden) S.patience.focusSec += dt/1000;
+    else S.patience.waits += dt/4000;
+
+    for (const k in S.cells){
+      const c=S.cells[k];
+      if (!c.tree || c.tree.dead) continue;
+      const [x,y]=k.split(",").map(Number);
+      const tree=c.tree;
+      const def=TM[tree.id];
+      if (expired(tree,c)) { finishTree(x,y,c); continue; }
+
+      const auto = S.raining || streamNear(x,y) || partnerCovers(x,y);
+      if (auto) tree.water = Math.min(100, tree.water + dt/8000*speed()*8);
+
+      const drain = (def.id==="cacto"?0.35:0.7) * (dt/1000) * speed();
+      tree.water -= drain;
+      if (tree.water <= 0){
+        tree.water = 0;
+        if (tree.critical){ tree.dead=true; toast("Uma planta secou de vez."); continue; }
+        tree.critical = true;
+      } else if (tree.water > 18) tree.critical=false;
+
+      const stNeed = def.grow*60000/speed()/tileMult(c,tree.id).grow;
+      if (now()-tree.planted < stNeed) continue;
+      if (tree.water <= 0) continue;
+      const hourMs = 3600000 / ((S.focus && !document.hidden)?2:1) / speed();
+      tree.coinBar += dt / hourMs * 100;
+      if (tree.coinBar >= 100){
+        tree.coinBar = 0;
+        const pay = def.cps * 3600 * tileMult(c,tree.id).cps * (S.focus?2:1);
+        gain(pay,0);
+      }
+    }
+  }
+
+  function visibleKeys(){
+    const pad=3;
+    const minX = Math.floor((-window.innerWidth/2 + S.cam.x)/TS) - pad;
+    const maxX = Math.ceil((window.innerWidth/2 + S.cam.x)/TS) + pad;
+    const minY = Math.floor((-window.innerHeight/2 + S.cam.y)/TS) - pad;
+    const maxY = Math.ceil((window.innerHeight/2 + S.cam.y)/TS) + pad;
+    const list=[];
+    const seen=new Set();
+    for (let y=minY;y<=maxY;y++) for (let x=minX;x<=maxX;x++){
+      const c=cell(x,y);
+      if (c){ list.push([x,y,c]); seen.add(key(x,y)); }
+      else if (ownedNear(x,y)) list.push([x,y,null]);
+    }
+    for (const k in S.cells){
+      if (seen.has(k)) continue;
+      const [x,y]=k.split(",").map(Number);
+      if (x>=minX&&x<=maxX&&y>=minY&&y<=maxY) list.push([x,y,S.cells[k]]);
+    }
+    return list;
+  }
+
+  function renderWorld(){
+    const board=document.getElementById("board");
+    board.innerHTML="";
+    const day=isDay(now());
+    visibleKeys().forEach(([x,y,c]) => {
+      const pos=screenOf(x,y);
+      const div=document.createElement("div");
+      div.className="tile";
+      div.style.left=pos.left+"px";
+      div.style.top=pos.top+"px";
+      div.dataset.x=x; div.dataset.y=y;
+      if (!c){ div.classList.add("unlockable"); }
+      else {
+        div.classList.add(c.type);
+        if (c.tree){
+          const st=stageOf(c.tree,c);
+          const def=TM[c.tree.id];
+          const p=document.createElement("div");
+          p.className="plant"+(c.tree.dead?" dead":"");
+          p.textContent = c.tree.dead ? "🥀" : def.e[st.i];
+          div.appendChild(p);
+          const bars=document.createElement("div");
+          bars.className="bars";
+          const coin=document.createElement("div"); coin.className="bar coin"; coin.innerHTML="<i></i>";
+          coin.firstChild.style.width=Math.max(0,Math.min(100,c.tree.coinBar))+"%";
+          const wat=document.createElement("div"); wat.className="bar water"+(c.tree.critical?" crit":""); wat.innerHTML="<i></i>";
+          wat.firstChild.style.width=Math.max(0,Math.min(100,c.tree.water))+"%";
+          bars.appendChild(coin); bars.appendChild(wat); div.appendChild(bars);
+        } else if (c.type==="path" && day){
+          const w=document.createElement("div");
+          w.className="walker";
+          const hues=[12,200,140,280,40];
+          w.style.background=`hsl(${hues[(x*3+y+99)%hues.length]} 70% 55%)`;
+          w.style.animationDuration=(5+(Math.abs(x+y)%5))+"s";
+          w.style.animationDelay="-"+(Math.abs(x*2+y)%6)+"s";
+          div.appendChild(w);
+        } else if (c.type==="stream"){
+          const p=document.createElement("div"); p.className="plant"; p.textContent="💧"; div.appendChild(p);
+        }
+        if (c.partnerUntil>now()){
+          const s=document.createElement("div");
+          s.className="socio";
+          s.style.background=`hsl(${c.partnerHue||30} 70% 50%)`;
+          div.appendChild(s);
+        }
+        if (c.deco){
+          const d=document.createElement("div"); d.className="deco";
+          const dd=DECOS.find(z=>z.id===c.deco);
+          d.textContent=dd?dd.emoji:"✨";
+          div.appendChild(d);
+        }
+      }
+      board.appendChild(div);
+    });
+  }
+
+  function renderHud(){
+    document.getElementById("coins").textContent=Math.floor(S.coins);
+    document.getElementById("gems").textContent=Math.floor(S.gems);
+    document.getElementById("dayn").textContent=S.day;
+    const d=new Date(now());
+    document.getElementById("clock").textContent=d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    document.getElementById("clockMoon").textContent=isDay(now())?"☀️":"🌙";
+    document.getElementById("seasonTxt").textContent=seasonLabel();
+    document.getElementById("patTxt").textContent=patienceLabel();
+    document.getElementById("sky").className=skyClass(now());
+    document.body.classList.toggle("focusMode", S.focus);
+    document.getElementById("btnFocus").classList.toggle("active", S.focus);
+    document.getElementById("setName").textContent = S.profile ? S.profile.name : "—";
+    document.getElementById("setPat").textContent = patienceLabel();
+    document.getElementById("setWeather").textContent = (S.raining?"chuva — regando. ":"sem chuva. ") + (S.weatherText||"");
+    document.getElementById("setStreak").textContent = S.streak||0;
+    document.getElementById("devPanel").style.display = S.dev.on ? "block" : "none";
+  }
+
+  function renderBag(){
+    const list=document.getElementById("bagList");
+    list.innerHTML="";
+    const seeds=Object.keys(S.seeds).filter(k=>S.seeds[k]>0);
+    if (!seeds.length && !S.fertilizer && !S.partners && !Object.values(S.decos||{}).some(n=>n>0)){
+      list.innerHTML="<p class='tiny'>Mochila vazia.</p>"; return;
+    }
+    seeds.forEach(id=>{
+      const t=TM[id];
+      const el=document.createElement("div");
+      el.className="seed"+(pickSeed===id?" pick":"");
+      el.draggable=true;
+      el.innerHTML=`<div style="font-size:26px">${t.e[0]}</div><div><b>${t.name}</b><div class="tiny">${S.seeds[id]} • ${t.grow} min</div></div>`;
+      el.onclick=()=>{ pickSeed = pickSeed===id?null:id; renderBag(); toast(pickSeed?"Toque num tile vazio ou arraste.":"Seleção limpa."); };
+      el.addEventListener("dragstart", ev => { ev.dataTransfer.setData("text/plain","seed:"+id); });
+      list.appendChild(el);
+    });
+    if (S.fertilizer){
+      const el=document.createElement("div"); el.className="seed"; el.draggable=true;
+      el.innerHTML=`<div style="font-size:26px">🧪</div><div><b>Fertilizante</b><div class="tiny">${S.fertilizer} un.</div></div>`;
+      el.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain","fert"));
+      list.appendChild(el);
+    }
+    if (S.partners){
+      const el=document.createElement("div"); el.className="seed"; el.draggable=true;
+      el.innerHTML=`<div style="font-size:26px">🤝</div><div><b>Sócio</b><div class="tiny">${S.partners} • 7x7 / 48h</div></div>`;
+      el.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain","socio"));
+      list.appendChild(el);
+    }
+    Object.keys(S.decos||{}).forEach(id=>{
+      if (!S.decos[id]) return;
+      const d=DECOS.find(z=>z.id===id); if(!d) return;
+      const el=document.createElement("div"); el.className="seed"; el.draggable=true;
+      el.innerHTML=`<div style="font-size:26px">${d.emoji}</div><div><b>${d.name}</b><div class="tiny">${S.decos[id]}</div></div>`;
+      el.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain","deco:"+id));
+      list.appendChild(el);
+    });
+  }
+
+  function shopDisabled(){ return isAprilFools(); }
+  function shopItems(tab){
+    if (shopDisabled()) return [];
+    if (tab==="seeds"){
+      return [
+        { title:"❓ Pacote misterioso", body:"Você só descobre a semente depois de comprar.", price:"28 🪙", buy:()=>{ if(!spend(28,0)) return toast("Falta moeda."); rollMystery(false); renderBag(); } },
+        { title:"❓ Pacote raro", body:"Mais chance de árvore rara. Continua sendo surpresa.", price:"70 🪙", buy:()=>{ if(!spend(70,0)) return toast("Falta moeda."); rollMystery(true); renderBag(); } }
+      ];
+    }
+    if (tab==="tiles"){
+      return Object.values(TILES).filter(t=> t.id!=="sand" || isVacay() || (S._unlockedSand)).map(t=>({
+        title:t.emoji+" "+t.name,
+        body:t.desc,
+        price:t.cost+" 🪙",
+        buy:()=>{ if(!spend(t.cost,0)) return toast("Falta moeda."); S._tileQ=S._tileQ||{}; S._tileQ[t.id]=(S._tileQ[t.id]||0)+1; toast("Tile na reserva. Toque num +."); }
+      }));
+    }
+    if (tab==="gems"){
+      return [
+        {title:"💎 1 gema", body:"Troca.", price:"40 🪙", buy:()=>{ if(!spend(40,0))return toast("Falta moeda."); gain(0,1); }},
+        {title:"💎 5 gemas", body:"Pacote.", price:"180 🪙", buy:()=>{ if(!spend(180,0))return toast("Falta moeda."); gain(0,5); }},
+        {title:"💎 20 gemas", body:"Baú.", price:"650 🪙", buy:()=>{ if(!spend(650,0))return toast("Falta moeda."); gain(0,20); }}
+      ];
+    }
+    if (tab==="season"){
+      const items=[];
+      if (isJan()) items.push({title:"🌳 Pacote baobá", body:"3 sementes do mês.", price:"180 🪙", buy:()=>{ if(!spend(180,0))return toast("Falta moeda."); addSeed("baoba",3); toast("Baobás na mochila."); }});
+      if (isVacay()){
+        items.push({title:"🏖️ Areia + coqueiro", body:"Tile de areia e 2 coqueiros.", price:"110 🪙", buy:()=>{ if(!spend(110,0))return toast("Falta moeda."); S._tileQ=S._tileQ||{}; S._tileQ.sand=(S._tileQ.sand||0)+1; addSeed("coqueiro",2); S._unlockedSand=true; toast("Kit férias!"); }});
+      }
+      if (isXmas()){
+        DECOS.forEach(d=> items.push({title:d.emoji+" "+d.name, body:"Decoração de dezembro.", price:d.cost+" 🪙", buy:()=>{ if(!spend(d.cost,0))return toast("Falta moeda."); S.decos[d.id]=(S.decos[d.id]||0)+1; toast("Decoração na mochila."); }}));
+        items.push({title:"🌲 3 pinheiros", body:"Clima de Natal.", price:"50 🪙", buy:()=>{ if(!spend(50,0))return toast("Falta moeda."); addSeed("pinheiro",3); }});
+      }
+      if (!items.length) items.push({title:"Nada especial", body:"Volte em janeiro, meados de julho ou dezembro.", price:"—", buy:()=>toast("Sem evento agora.")});
+      return items;
+    }
+    return [
+      {title:"🧪 Fertilizante", body:"6h mais rápido no tile.", price:"30 🪙", buy:()=>{ if(!spend(30,0))return toast("Falta moeda."); S.fertilizer++; }},
+      {title:"🤝 Sócio", body:"Pessoa visível. Rega 7x7 por 48h.", price:"120 🪙", buy:()=>{ if(!spend(120,0))return toast("Falta moeda."); S.partners++; }}
+    ];
+  }
+  function renderShop(){
+    document.getElementById("shopHint").textContent = shopDisabled()
+      ? "1º de abril: a loja recusou trabalhar. Cada clique no mundo custa moedas."
+      : {seeds:"Pacote fechado: a espécie só aparece depois da compra.", tiles:"Compre e clique num espaço +.", gems:"Aceleram o crescimento.", extra:"Fertilizante e sócios.", season:"Itens do mês especial."}[shopTab];
+    const grid=document.getElementById("shopGrid");
+    grid.innerHTML="";
+    const items=shopItems(shopTab);
+    if (!items.length){ grid.innerHTML="<p class='hint'>Fechado hoje.</p>"; return; }
+    items.forEach(it=>{
+      const d=document.createElement("div"); d.className="card";
+      d.innerHTML=`<h3>${it.title}</h3><p>${it.body}</p><button class="buy" ${it.price==="—"?"disabled":""}>${it.price}</button>`;
+      d.querySelector("button").onclick=()=>{ it.buy(); save(); renderHud(); renderBag(); };
+      grid.appendChild(d);
+    });
+  }
+
+  function renderBook(){
+    const known = TREES.filter(t => (S.discovered||[]).includes(t.id));
+    const box=document.getElementById("bookPages");
+    if (!known.length){
+      box.innerHTML="<div class='page'><h3>Livro vazio</h3><p>Compre um pacote e descubra a semente para registrar aqui.</p></div><div class='page'></div>";
+      document.getElementById("bookNum").textContent="0 / 0";
+      return;
+    }
+    const pages=Math.max(1, Math.ceil(known.length/2));
+    bookPage=((bookPage%pages)+pages)%pages;
+    const a=known[bookPage*2], b=known[bookPage*2+1];
+    const html=t=> t? `<div class="page"><div class="big">${t.e[3]}</div><h3>${t.name}${t.rare?" ★":""}</h3><p>${t.desc}</p><p>Cresce ${t.grow} min • ciclo ${t.life} min • ${t.cps.toFixed(2)}/s • ${t.gem}💎${t.fruit?" • frutas":""}</p></div>` : `<div class="page"><div class="big">❓</div><h3>Ainda não encontrada</h3><p>Compre pacotes misteriosos para preencher o livro.</p></div>`;
+    box.innerHTML=html(a)+html(b);
+    document.getElementById("bookNum").textContent=(bookPage+1)+" / "+pages;
+  }
+
+  function hideCtx(){ document.getElementById("ctx").style.display="none"; }
+  function showCtx(px,py, html){
+    const el=document.getElementById("ctx");
+    el.innerHTML=html;
+    el.style.display="block";
+    el.style.left=Math.min(px, window.innerWidth-200)+"px";
+    el.style.top=Math.min(py, window.innerHeight-180)+"px";
+  }
+
+  function onTileTap(x,y, px, py){
+    if (isAprilFools()){
+      S.coins -= 3;
+      S.patience.taps++;
+      toast("1º de abril: -3 🪙");
+    }
+    const c=cell(x,y);
+    if (!c){
+      if (!ownedNear(x,y)) return;
+      const q=S._tileQ||{};
+      const opts=Object.keys(TILES).filter(id => id!=="sand" || isVacay() || q.sand || S._unlockedSand);
+      showCtx(px,py,
+        `<b>Novo tile</b>`+
+        opts.map(id=>{
+          const t=TILES[id];
+          const have=q[id]||0;
+          return `<button data-act="place" data-type="${id}">${t.emoji} ${t.name} ${have? "(reserva)": t.cost+"🪙"}</button>`;
+        }).join("")
+      );
+      document.getElementById("ctx").onclick=ev=>{
+        const b=ev.target.closest("button"); if(!b) return;
+        const type=b.dataset.type;
+        const have=(S._tileQ&&S._tileQ[type])||0;
+        if (have){ S._tileQ[type]--; if(S._tileQ[type]<=0) delete S._tileQ[type]; }
+        else if (!spend(TILES[type].cost,0)) { toast("Falta moeda."); return; }
+        S.cells[key(x,y)] = emptyCell(type);
+        hideCtx(); save(); renderAll(); toast("Tile novo: "+TILES[type].name);
+        if (S.tutorial === 6 && type === "stream") setTutorial(7);
+      };
+      return;
+    }
+    if (c.tree){
+      if (c.tree.dead){
+        showCtx(px,py,`<b>Planta perdida</b><button data-act="rm">Remover</button>`);
+        document.getElementById("ctx").onclick=ev=>{
+          if (ev.target.dataset.act==="rm"){ c.tree=null; hideCtx(); save(); renderAll(); }
+        };
+        return;
+      }
+      S.patience.taps++;
+      if (harvestFruit(c,c.tree)) { save(); renderAll(); return; }
+      waterTree(c,c.tree,x,y);
+      save(); renderAll();
+      return;
+    }
+    const seeds=Object.keys(S.seeds).filter(k=>S.seeds[k]>0);
+    const types=Object.keys(TILES).filter(id=>id!=="sand"||isVacay()||S._unlockedSand);
+    showCtx(px,py,
+      `<b>Tile vazio</b>`+
+      `<button data-act="seed">Colocar semente...</button>`+
+      `<button data-act="swap">Trocar por...</button>`
+    );
+    document.getElementById("ctx").onclick=ev=>{
+      const b=ev.target.closest("button"); if(!b) return;
+      if (b.dataset.act==="seed"){
+        if (pickSeed){ plantAt(x,y,pickSeed); hideCtx(); save(); renderAll(); renderBag(); return; }
+        elSeeds(x,y,px,py,seeds);
+      } else if (b.dataset.act==="swap"){
+        showCtx(px,py, `<b>Trocar tile</b>` + types.map(id=>`<button data-swap="${id}">${TILES[id].emoji} ${TILES[id].name} ${TILES[id].cost}🪙</button>`).join(""));
+        document.getElementById("ctx").onclick=ev2=>{
+          const s=ev2.target.closest("button"); if(!s||!s.dataset.swap) return;
+          const id=s.dataset.swap;
+          if (!spend(TILES[id].cost,0)) return toast("Falta moeda.");
+          c.type=id; hideCtx(); save(); renderAll();
+        };
+      } else if (b.dataset.plant){
+        plantAt(x,y,b.dataset.plant); hideCtx(); save(); renderAll(); renderBag();
+      }
+    };
+  }
+  function elSeeds(x,y,px,py,seeds){
+    if (!seeds.length){ toast("Sem sementes. Abra a loja."); hideCtx(); return; }
+    showCtx(px,py, `<b>Colocar semente...</b>` + seeds.map(id=>`<button data-plant="${id}">${TM[id].e[0]} ${TM[id].name} (${S.seeds[id]})</button>`).join(""));
+    document.getElementById("ctx").onclick=ev=>{
+      const b=ev.target.closest("button"); if(!b||!b.dataset.plant) return;
+      plantAt(x,y,b.dataset.plant); hideCtx(); save(); renderAll(); renderBag();
+    };
+  }
+
+  function applyDrop(kind, x, y){
+    const c=cell(x,y);
+    if (!c){ toast("Desbloqueie o tile primeiro."); return; }
+    if (kind.startsWith("seed:")){
+      plantAt(x,y, kind.slice(5)); renderBag(); return;
+    }
+    if (kind==="fert"){
+      if (!S.fertilizer) return;
+      if (c.type==="stream"||c.type==="path") return toast("Não neste tile.");
+      S.fertilizer--; c.fertilizeUntil=now()+6*3600000; toast("Fertilizado 6h.");
+      if (S.tutorial === 5) setTutorial(6);
+      return;
+    }
+    if (kind==="socio"){
+      if (!S.partners) return;
+      S.partners--; c.partnerUntil=now()+48*3600000; c.partnerHue=Math.floor(Math.random()*360);
+      toast("Sócio no posto 7x7."); return;
+    }
+    if (kind.startsWith("deco:")){
+      const id=kind.slice(5);
+      if (!S.decos[id]) return;
+      S.decos[id]--; c.deco=id; toast("Decorado.");
+    }
+  }
+
+  const board=document.getElementById("board");
+  board.addEventListener("pointerdown", ev=>{
+    if (ev.button!==0 && ev.pointerType==="mouse") return;
+    hideCtx();
+    const w=worldOf(ev.clientX, ev.clientY);
+    drag = { x0:ev.clientX, y0:ev.clientY, camX:S.cam.x, camY:S.cam.y, moved:false, wx:w.x, wy:w.y };
+    const c=cell(w.x,w.y);
+    if (c && c.tree && !c.tree.dead){
+      const def=TM[c.tree.id];
+      hold = { t:Date.now(), x:w.x, y:w.y, shown:false, done:false, gem:def.gem };
+    } else hold=null;
+  });
+  window.addEventListener("pointermove", ev=>{
+    if (!drag) return;
+    const dx=ev.clientX-drag.x0, dy=ev.clientY-drag.y0;
+    if (Math.hypot(dx,dy)>8){
+      drag.moved=true;
+      board.classList.add("drag");
+      S.cam.x = drag.camX - dx;
+      S.cam.y = drag.camY - dy;
+      if (hold){ hold=null; document.getElementById("holdGem").style.display="none"; }
+      if (now()-lastRender>30){ lastRender=now(); renderWorld(); }
+    }
+    if (hold && !hold.done){
+      const dt=Date.now()-hold.t;
+      const g=document.getElementById("holdGem");
+      if (dt>350){
+        g.style.display="block";
+        g.style.left=ev.clientX+12+"px";
+        g.style.top=ev.clientY+12+"px";
+        g.textContent="Segure: "+hold.gem+" 💎 para crescer";
+        hold.shown=true;
+        S.patience.holds++;
+      }
+      if (dt>1250){
+        const c=cell(hold.x,hold.y);
+        if (c&&c.tree) gemBoost(c,c.tree);
+        hold.done=true;
+        g.style.display="none";
+        save(); renderAll();
+      }
+    }
+  });
+  window.addEventListener("pointerup", ev=>{
+    document.getElementById("holdGem").style.display="none";
+    board.classList.remove("drag");
+    if (!drag) return;
+    const moved=drag.moved, hx=drag.wx, hy=drag.wy, doneHold=hold&&hold.done;
+    const px=ev.clientX, py=ev.clientY;
+    drag=null; hold=null;
+    if (!moved && !doneHold) onTileTap(hx,hy,px,py);
+  });
+
+  board.addEventListener("dragover", ev=>ev.preventDefault());
+  board.addEventListener("drop", ev=>{
+    ev.preventDefault();
+    const w=worldOf(ev.clientX, ev.clientY);
+    applyDrop(ev.dataTransfer.getData("text/plain"), w.x, w.y);
+    save(); renderAll(); renderBag();
+  });
+
+  function renderAll(){ renderHud(); renderWorld(); }
+
+  function makeFx(){
+    const fx=document.getElementById("fx");
+    fx.innerHTML="";
+    if (isXmas()){
+      for(let i=0;i<36;i++){
+        const s=document.createElement("div"); s.className="flake"; s.textContent="❄";
+        s.style.left=Math.random()*100+"%";
+        s.style.animationDuration=(4+Math.random()*5)+"s";
+        s.style.animationDelay=(-Math.random()*6)+"s";
+        fx.appendChild(s);
+      }
+    } else if (S.raining){
+      for(let i=0;i<40;i++){
+        const d=document.createElement("div"); d.className="drop";
+        d.style.left=Math.random()*100+"%";
+        d.style.animationDuration=(0.6+Math.random()*0.8)+"s";
+        d.style.animationDelay=(-Math.random()*2)+"s";
+        fx.appendChild(d);
+      }
+    }
+  }
+
+  async function fetchWeather(){
+    try{
+      const lat=S.lat!=null?S.lat:-23.55, lon=S.lon!=null?S.lon:-46.63;
+      const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=precipitation,weather_code`);
+      const data=await res.json();
+      const p=data.current&&data.current.precipitation||0;
+      const code=data.current&&data.current.weather_code||0;
+      S.raining = p>0 || (code>=51&&code<70) || (code>=80&&code<100);
+      S.weatherText = S.raining ? "chuva real" : "sem chuva agora";
+    } catch(e){ S.weatherText="clima offline"; }
+    makeFx(); renderHud();
+  }
+
+  const TUTOR = [
+    { text:"Abra a mochila aqui embaixo.", spot:"#btnBag" },
+    { text:"Pegue a única muda e plante num tile de grama. Toque nela na mochila e depois no chão, ou arraste.", spot:"#bag" },
+    { text:"Segure a muda plantada. Continue segurando para gastar gemas e ela crescer agora.", spot:"#board" },
+    { text:"Abra a loja e compre um pacote de semente. Você só descobre qual é depois.", spot:"#btnShop" },
+    { text:"Plante a nova muda num tile vazio.", spot:"#bag" },
+    { text:"Fertilize um tile: abra a mochila e arraste o fertilizante até o chão.", spot:"#bag" },
+    { text:"Toque num + ao lado do jardim e adicione um tile de riacho (água).", spot:"#board" },
+    { text:"Agora é esperar. Fora do jogo o tempo passa bem mais devagar, para você viver a vida real sem perder tudo." }
+  ];
+  function clearSpots(){ document.querySelectorAll(".spot").forEach(el=>el.classList.remove("spot")); }
+  function setTutorial(n){
+    S.tutorial = n;
+    const box = document.getElementById("tutor");
+    clearSpots();
+    if (n == null || n > 7){
+      box.style.display = "none";
+      S.tutorial = 8;
+      save();
+      return;
+    }
+    const step = TUTOR[n];
+    if (!step){ box.style.display="none"; return; }
+    box.style.display = "block";
+    box.innerHTML = `<div>Dica ${n+1}/8</div><div style="margin-top:6px">${step.text}</div><div class="tiny">Siga o passo. O texto muda sozinho.</div>`;
+    box.style.left = "72px";
+    box.style.bottom = n===0 ? "130px" : "12px";
+    box.style.top = "auto";
+    if (step.spot){
+      const el = document.querySelector(step.spot);
+      if (el) el.classList.add("spot");
+    }
+    if (n === 7) setTimeout(()=>{ if (S.tutorial===7){ setTutorial(8); toast("Tutorial concluído. Pode ir com calma."); } }, 8000);
+    save();
+  }
+
+  let peer = null, lobbyConn = null, iAmLobby = false;
+  const partyConns = {};
+  let foundPeople = {};
+  const LOBBY_ID = "wig-lobby-sala-1";
+
+  function slugName(){
+    const n = ((S.profile&&S.profile.name)||"jardineiro").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,10) || "jogador";
+    if (!S.peerNameId) S.peerNameId = "wig-"+n+"-"+Math.random().toString(36).slice(2,6);
+    return S.peerNameId;
+  }
+  function partyCount(){ return 1 + (S.party||[]).length; }
+  function setPeerStatus(t){ const el=document.getElementById("peerStatus"); if(el) el.textContent=t; }
+  function renderPeople(){
+    const list=document.getElementById("peopleList");
+    if (!list) return;
+    const names = Object.values(foundPeople).filter(p => p.peerId !== slugName());
+    if (!names.length){ list.innerHTML = "<p class='tiny'>Ninguém por perto ainda. Peça para outra pessoa abrir o jogo.</p>"; return; }
+    list.innerHTML = names.map(p=>{
+      const inParty = (S.party||[]).some(m=>m.peerId===p.peerId);
+      return `<div class="person"><span>${p.name}</span>${inParty?"<span class='tiny'>junto</span>":`<button data-inv="${p.peerId}">Convidar</button>`}</div>`;
+    }).join("");
+    list.querySelectorAll("[data-inv]").forEach(b=> b.onclick=()=>invitePeer(b.dataset.inv));
+  }
+  function sendJSON(c, obj){ try { c.send(obj); } catch(e){} }
+  function attachConn(c, knownName){
+    c.on("data", msg => onNet(c, msg));
+    c.on("close", ()=> {
+      delete partyConns[c.peer];
+      delete foundPeople[c.peer];
+      renderPeople();
+    });
+    if (knownName) foundPeople[c.peer] = { name: knownName, peerId: c.peer };
+  }
+  function onNet(c, msg){
+    if (!msg || !msg.t) return;
+    if (msg.t === "hello"){
+      foundPeople[msg.peerId] = { name: msg.name, peerId: msg.peerId };
+      renderPeople();
+      if (iAmLobby) broadcastLobby();
+    }
+    if (msg.t === "list"){
+      (msg.players||[]).forEach(p => { foundPeople[p.peerId] = p; });
+      renderPeople();
+    }
+    if (msg.t === "invite"){
+      if (msg.to !== slugName()) return;
+      if (!confirm(msg.fromName + " quer colar os jardins. Aceitar? Até 5 pessoas.")) {
+        sendJSON(c, { t:"refuse", from: slugName() });
+        return;
+      }
+      if (partyCount() >= 5){ toast("Grupo cheio."); return; }
+      openDirect(msg.from, () => {
+        const dc = partyConns[msg.from];
+        if (dc) sendJSON(dc, { t:"accept", from: slugName(), name: S.profile.name, snap: snapshotGarden() });
+      });
+    }
+    if (msg.t === "accept"){
+      mergeWith(msg.name, msg.from, msg.snap);
+      sendJSON(c, { t:"merged", name: S.profile.name, snap: snapshotGarden(), party: S.party });
+      Object.values(partyConns).forEach(pc => { if (pc!==c) sendJSON(pc, { t:"merged", name: S.profile.name, snap: snapshotGarden(), party: S.party }); });
+    }
+    if (msg.t === "merged"){
+      applyMerged(msg.snap, msg.party, msg.name);
+    }
+    if (msg.t === "refuse") toast("Convite recusado.");
+  }
+  function broadcastLobby(){
+    const players = Object.values(foundPeople);
+    Object.values(partyConns).forEach(c => sendJSON(c, { t:"list", players }));
+    if (lobbyConn) sendJSON(lobbyConn, { t:"list", players });
+  }
+  function snapshotGarden(){
+    return {
+      cells: S.cells,
+      coins: S.coins,
+      gems: S.gems,
+      seeds: S.seeds,
+      fertilizer: S.fertilizer,
+      partners: S.partners,
+      decos: S.decos,
+      discovered: S.discovered,
+      name: S.profile && S.profile.name
+    };
+  }
+  function boundsOf(cells){
+    const xs=[], ys=[];
+    Object.keys(cells).forEach(k=>{ const [x,y]=k.split(",").map(Number); xs.push(x); ys.push(y); });
+    if (!xs.length) return {minX:0,maxX:0,minY:0,maxY:0};
+    return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys) };
+  }
+  function shiftCells(cells, dx, dy){
+    const out={};
+    Object.keys(cells).forEach(k=>{
+      const [x,y]=k.split(",").map(Number);
+      out[(x+dx)+","+(y+dy)] = JSON.parse(JSON.stringify(cells[k]));
+    });
+    return out;
+  }
+  function mergeSnaps(a, b){
+    const ba=boundsOf(a.cells), bb=boundsOf(b.cells);
+    const dx = ba.maxX + 2 - bb.minX;
+    const dy = ba.minY - bb.minY;
+    const glued = Object.assign({}, a.cells, shiftCells(b.cells, dx, dy));
+    const seeds = Object.assign({}, a.seeds);
+    Object.keys(b.seeds||{}).forEach(id => seeds[id]=(seeds[id]||0)+(b.seeds[id]||0));
+    const discovered = Array.from(new Set([...(a.discovered||[]), ...(b.discovered||[])]));
+    const decos = Object.assign({}, a.decos||{});
+    Object.keys(b.decos||{}).forEach(id => decos[id]=(decos[id]||0)+(b.decos[id]||0));
+    return {
+      cells: glued,
+      coins: (a.coins||0)+(b.coins||0),
+      gems: (a.gems||0)+(b.gems||0),
+      seeds, discovered, decos,
+      fertilizer: (a.fertilizer||0)+(b.fertilizer||0),
+      partners: (a.partners||0)+(b.partners||0)
+    };
+  }
+  function applyCombined(comb){
+    S.cells = comb.cells;
+    S.coins = comb.coins;
+    S.gems = comb.gems;
+    S.seeds = comb.seeds;
+    S.discovered = comb.discovered;
+    S.decos = comb.decos;
+    S.fertilizer = comb.fertilizer;
+    S.partners = comb.partners;
+    save(); renderAll(); renderBag();
+  }
+  function mergeWith(name, peerId, snap){
+    if (partyCount() >= 5){ toast("Máximo de 5 pessoas."); return; }
+    if ((S.party||[]).some(m=>m.peerId===peerId)) return;
+    const comb = mergeSnaps(snapshotGarden(), snap);
+    applyCombined(comb);
+    S.party = S.party || [];
+    S.party.push({ name, peerId });
+    toast("Jardins colados com " + name + ". Soma dividida nos dois lados.");
+    save();
+  }
+  function applyMerged(snap, party, name){
+    S.cells = snap.cells;
+    S.coins = snap.coins;
+    S.gems = snap.gems;
+    S.seeds = snap.seeds;
+    S.discovered = snap.discovered;
+    S.decos = snap.decos;
+    S.fertilizer = snap.fertilizer;
+    S.partners = snap.partners;
+    S.party = party || S.party;
+    toast("Jardim unido com " + (name||"alguém") + ".");
+    save(); renderAll(); renderBag();
+  }
+  function openDirect(id, cb){
+    if (partyConns[id] && partyConns[id].open){ cb && cb(); return; }
+    const c = peer.connect(id);
+    partyConns[id] = c;
+    c.on("open", ()=> { attachConn(c); sendJSON(c, { t:"hello", name:S.profile.name, peerId:slugName() }); cb && cb(); });
+    attachConn(c);
+  }
+  function invitePeer(id){
+    if (partyCount()>=5) return toast("Já tem 5 pessoas.");
+    const sendInv = (c) => sendJSON(c, { t:"invite", from:slugName(), fromName:S.profile.name, to:id });
+    if (partyConns[id] && partyConns[id].open) sendInv(partyConns[id]);
+    else if (lobbyConn && lobbyConn.open) sendInv(lobbyConn);
+    else openDirect(id, ()=> sendInv(partyConns[id]));
+    toast("Convite enviado.");
+  }
+  function startPeer(){
+    if (!S.profile || !window.Peer){ setPeerStatus("rede indisponível"); return; }
+    if (peer) return;
+    const myId = slugName();
+    peer = new Peer(myId);
+    peer.on("open", ()=> {
+      setPeerStatus("você: " + (S.profile.name) + " — procurando...");
+      foundPeople[myId] = { name: S.profile.name, peerId: myId };
+      joinLobby();
+    });
+    peer.on("connection", c => {
+      partyConns[c.peer] = c;
+      attachConn(c);
+      c.on("open", ()=> sendJSON(c, { t:"hello", name:S.profile.name, peerId:myId }));
+    });
+    peer.on("error", err => {
+      if (String(err).includes("taken") || (err && err.type==="unavailable-id")){
+        S.peerNameId = null;
+        peer = null;
+        startPeer();
+        return;
+      }
+      setPeerStatus("rede: " + (err.type || "erro"));
+    });
+  }
+  function joinLobby(){
+    const c = peer.connect(LOBBY_ID);
+    c.on("open", ()=> {
+      lobbyConn = c;
+      iAmLobby = false;
+      attachConn(c);
+      sendJSON(c, { t:"hello", name:S.profile.name, peerId:slugName() });
+      setPeerStatus("conectado. procurando outras pessoas...");
+    });
+    c.on("error", ()=> becomeLobby());
+    setTimeout(()=>{ if (!lobbyConn || !lobbyConn.open) becomeLobby(); }, 1800);
+  }
+  function becomeLobby(){
+    if (iAmLobby) return;
+    const lobby = new Peer(LOBBY_ID);
+    lobby.on("open", ()=> {
+      iAmLobby = true;
+      setPeerStatus("sala aberta. aguardando gente...");
+    });
+    lobby.on("connection", c => {
+      partyConns[c.peer] = c;
+      attachConn(c);
+      c.on("open", ()=> {
+        sendJSON(c, { t:"hello", name:S.profile.name, peerId:slugName() });
+        broadcastLobby();
+      });
+    });
+    lobby.on("error", ()=> setPeerStatus("sala ocupada — tentando de novo..."));
+  }
+
+  document.getElementById("btnPeople").onclick=()=>{
+    document.getElementById("peoplePop").classList.toggle("show");
+    renderPeople();
+    startPeer();
+  };
+  document.getElementById("btnBag").onclick=()=>{
+    document.getElementById("bag").classList.toggle("show");
+    renderBag();
+    if (S.tutorial === 0) setTutorial(1);
+  };
+  document.getElementById("btnShop").onclick=()=>{ document.getElementById("ovShop").classList.add("show"); renderShop(); };
+  document.getElementById("btnBook").onclick=()=>{ document.getElementById("ovBook").classList.add("show"); renderBook(); };
+  document.getElementById("btnSet").onclick=()=>{ document.getElementById("ovSet").classList.add("show"); renderHud(); };
+  document.getElementById("btnFocus").onclick=()=>{ S.focus=!S.focus; toast(S.focus?"Foco 2x.":"Foco off."); renderAll(); };
+  document.getElementById("focusHud").onclick=()=>{ S.focus=false; renderAll(); };
+  document.querySelectorAll("[data-close]").forEach(b=> b.onclick=()=>document.getElementById(b.dataset.close).classList.remove("show"));
+  document.querySelectorAll(".tabs button").forEach(b=> b.onclick=()=>{
+    document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); shopTab=b.dataset.tab; renderShop();
+  });
+  document.getElementById("bookPrev").onclick=()=>{ bookPage--; renderBook(); };
+  document.getElementById("bookNext").onclick=()=>{ bookPage++; renderBook(); };
+  document.getElementById("btnReset").onclick=()=>{
+    if (confirm("Apagar o jardim?")){ localStorage.removeItem(SAVE); S=defaultState(); document.getElementById("ovHello").classList.add("show"); renderAll(); }
+  };
+  document.getElementById("btnGeo").onclick=()=>{
+    if (!navigator.geolocation) return toast("Sem geolocalização.");
+    navigator.geolocation.getCurrentPosition(pos=>{ S.lat=pos.coords.latitude; S.lon=pos.coords.longitude; fetchWeather(); save(); toast("Local salvo."); }, ()=>toast("Não deu."));
+  };
+  document.getElementById("devInfinite").onchange=e=>{ S.dev.infinite=e.target.checked; if(S.dev.infinite){ S.coins=Math.max(S.coins,999999); S.gems=Math.max(S.gems,9999);} save(); renderHud(); };
+  document.getElementById("devSpeed").oninput=e=>{ S.dev.speed=+e.target.value; document.getElementById("devSpeedLbl").textContent=S.dev.speed+"x"; save(); };
+  document.getElementById("devHours").oninput=e=>{ S.dev.hours=+e.target.value; document.getElementById("devHoursLbl").textContent=S.dev.hours+"h"; save(); renderAll(); };
+  document.getElementById("btnDevOff").onclick=()=>{ S.dev.on=false; S.dev.infinite=false; S.dev.speed=1; save(); renderAll(); };
+
+  const KONAMI=["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+  let kbuf=[];
+  window.addEventListener("keydown", ev=>{
+    if (!document.getElementById("ovSet").classList.contains("show")) return;
+    kbuf.push(ev.key.length===1?ev.key.toLowerCase():ev.key);
+    kbuf=kbuf.slice(-10);
+    if (KONAMI.every((v,i)=>kbuf[i]===v)){ S.dev.on=true; toast("Modo dev."); save(); renderHud(); }
+  });
+
+  document.getElementById("btnStart").onclick=()=>{
+    const name=(document.getElementById("inName").value||"").trim();
+    const age=+document.getElementById("inAge").value;
+    const gen=document.getElementById("inGen").value;
+    if (!name) return toast("Escreva um nome.");
+    if (!age || age<5 || age>99) return toast("Escreva uma idade válida.");
+    S.profile={ name, age, gender:gen };
+    document.getElementById("ovHello").classList.remove("show");
+    claimStreak();
+    save(); renderAll(); renderBag();
+    toast("Olá, "+name+"!");
+    setTutorial(0);
+    startPeer();
+  };
+
+  load();
+  applyAway();
+  if (S.profile && S.profile.name){
+    document.getElementById("ovHello").classList.remove("show");
+    document.getElementById("inName").value=S.profile.name||"";
+    claimStreak();
+    if (S.tutorial == null) S.tutorial = 8;
+    if (S.tutorial < 8) setTutorial(S.tutorial);
+    startPeer();
+  }
+  makeFx();
+  renderAll();
+  renderBag();
+  fetchWeather();
+  setInterval(()=>{
+    const t=Date.now();
+    const dt=Math.min(4000, t-(S._wall||t));
+    S._wall=t;
+    tick(document.hidden ? dt * OFFLINE_RATE : dt);
+    renderHud();
+  }, 1000);
+  setInterval(()=>{ renderWorld(); save(); }, 2500);
+  setInterval(fetchWeather, 10*60*1000);
+  window.addEventListener("resize", renderWorld);
+  window.addEventListener("beforeunload", save);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "id": "Wait it Grow",
+  "version": "1.0.0",
+  "entry": "index.html",
+  "keep": ["index.html", "icon.svg"],
+  "files": ["icon.svg", "card.png"],
+  "description": "Jogo zen onde sempre é bom esperar. Plante algumas mudas, ou várias, e espere crescerem."
+}

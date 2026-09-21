@@ -1,0 +1,19 @@
+{
+  "name": "Wait It Grow",
+  "short_name": "Wait It Grow",
+  "description": "Jogo idle de plantar, esperar e cuidar de árvores.",
+  "start_url": "./wait-it-grow.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#142016",
+  "theme_color": "#3d2a18",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "./logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
